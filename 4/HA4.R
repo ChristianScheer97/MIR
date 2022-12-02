@@ -1,6 +1,6 @@
 rm(list=ls()) # workspace
 
-# Example Script for enriching ^spotify data with musicbrainz features
+# Example Script for enriching spotify data with musicbrainz features
 
 library(tidyverse)  # import basic functions
 library(musicbrainz) # import musicbrainz functions
@@ -28,7 +28,7 @@ pull_musicbrainz_artist_ids<-function(artistvector)
   }
   ergebnis_liste$life_span_begin<-substr(ergebnis_liste$life_span_begin,1,4) %>% as.integer
   ergebnis_liste$life_span_end<-substr(ergebnis_liste$life_span_end,1,4) %>% as.integer
-  ergebnis_liste<-select(ergebnis_liste,mb.gesucht=gesucht,mb.artist.name=name,mb.quality=quality,
+  ergebnis_liste<-select(ergebnis_liste,mb.gesucht=gesucht,mb.artist.name=name,mb.artist.quality=quality,
                          mb.artist.id=mbid,mb.artist.type=type,mb.artist.gender=gender,mb.artist.country=country,mb.artist.city=area_name,
                          mb.artist.birthyear=life_span_begin,mb.artist.deathyear=life_span_end,mb.artist.dead=life_span_ended)
   return(ergebnis_liste)
@@ -48,25 +48,31 @@ pull_musicbrainz_track_ids<-function(trackvector)
     {
       cat("keine isrc gefunden")
       ergebnis<-search_recordings(title)
+      quality<-stringsim(toupper(trackvector$track.name[i]),toupper(ergebnis$title[1]),"jw")[1] #quality measurement with string-distance by Jero Winkler. Both Strings were converted to uppercase letters to avoid bigger string distance by upper and lowercase writing
+    }
+    else #Sets quality to 1, if track was found via ISRC
+    {
+      quality<-1.0
+      fund<-ergebnis[1,]
     }
     cat("Gesucht: ", title,"  ")
     cat("Gefunden: ",ergebnis$title[1],"\n")
-    fund<-ergebnis[1,]
     fund$gesucht<-title
-    fund$quality<-stringsim(trackvector$track.name[i],ergebnis$title[1],"jw")[1]
+    fund$quality<-quality
     fund<-select(fund,gesucht,title,quality,everything())
     ergebnis_liste<-rbind(ergebnis_liste,fund)
   }
-  ergebnis_liste<-select(ergebnis_liste, mb.track.id=mbid)
+  ergebnis_liste<-select(ergebnis_liste, mb.track.id=mbid, mb.track.quality=quality)
   return(ergebnis_liste)
 }
 
-pull_musicbrainz_album_ids_and_infos<-function(trackvector)
+pull_musicbrainz_album_ids<-function(trackvector)
 {
   ergebnis_liste<-c()
   cat("Suche Alben bei Musicbrainz...\n")
   for (i in 1:nrow(trackvector))
   {
+    album.upc<-trackvector¢album.upc[i]
     album.title<-trackvector$album.name[i]
     album.label<-trackvector$album.label[i]
     track.artist<-trackvector$track.artist[i]
@@ -85,16 +91,9 @@ pull_musicbrainz_album_ids_and_infos<-function(trackvector)
     fund<-ergebnis[1,]
     fund$gesucht<-album.title
     fund$quality<-stringsim(trackvector$album.name[i], ergebnis$title[1], "jw")[1]
-    fund<-select(fund, gesucht,album.title=title,quality,everything())
+    fund<-select(fund, gesucht,album.title=title,quality)
     ergebnis_liste<-rbind(ergebnis_liste,fund)
   }
-  ergebnis_liste<-select(ergebnis_liste, 
-                         album.mbid=mbid, 
-                         album.date=date, 
-                         album.country=country, 
-                         album.barcode=barcode, 
-                         album.track_count=track_count, 
-                         album.type=release_group_primary_type)
   return(ergebnis_liste)
 }
 
@@ -127,20 +126,44 @@ pull_musicbrainz_artist_infos<-function(mbidvector)
   return(ergebnis_liste)
 }
 
+pull_musicbrainz_album_infos()<-function(mbidvector)
+{
+  cat("Hole Album-Informationen bei Musicbrainz...\n")
+  ergebnis_liste<-c()
+  for (i in 1:length(mbidvector))
+  {
+    ergebnis<-lookup_recording_by_id(mbidvector[i])
+    fund<-ergebnis[1]
+    ergebnis_liste<-rbind(ergebnis_liste,fund)
+  }
+  ergebnis_liste<-select(ergebnis_liste, 
+                         album.mbid=mbid, 
+                         album.date=date, 
+                         album.country=country, 
+                         album.barcode=barcode, 
+                         album.track_count=track_count, 
+                         album.type=release_group_primary_type)
+  return(ergebnis_liste)
+}
+
 ############# Main Program
 
-filename<-"/home/christian/Desktop/MIR_HA/spotified_tracks_top30_monthly_charts_germany.rds"
+#filename<-"spotified_tracks_top30_monthly_charts_germany.rds"
+filename<-"spotified_artists_top30_monthly_charts_germany.rds"
 
 tracklist<-read_rds(filename)
 
-tracks<-head(tracklist,10) # zum Testen mal nur die ersten 10
+ergebnis_artist_ids<-pull_musicbrainz_artist_ids(tracklist$artist.name) # Get Musicbrainz Artist IDs
+ergebnis_artist_infos<-pull_musicbrainz_artist_infos(ergebnis_liste$mb.artist.id) # Get Musicbrainz Artist Infos
+ergebnis_track_ids<-pull_musicbrainz_track_ids(tracklist) # Get Musicbrainz Track IDs
+ergebnis_album_ids_infos<-pull_musicbrainz_album_ids_and_infos(tracklist) # Get Musicbrainz Album IDs and Album Infos
 
-ergebnis_liste<-cbind(tracks,pull_musicbrainz_artist_ids(tracks$artist.name))
-ergebnis_liste<-cbind(ergebnis_liste,pull_musicbrainz_artist_infos(ergebnis_liste$mb.artist.id))
-ergebnis_liste<-cbind(ergebnis_liste, pull_musicbrainz_track_ids(tracks))
-ergebnis_liste<-cbind(ergebnis_liste, pull_musicbrainz_album_ids_and_infos(tracks))
+ergebnis_liste<-cbind(tracklist, ergebnis_artist_ids, ergebnis_artist_infos, ergebnis_track_ids, ergebnis_album_ids_infos)
 
-test<-pull_musicbrainz_track_ids(tracks)
+#ergebnis<-pull_musicbrainz_track_ids(tracklist)
+
+#write_rds(ergebnis_liste,paste0("mb_tracks_",filename))
+write_rds(ergebnis_liste,paste0("mb_artists_",filename))
 
 summarize(ergebnis_liste,average_quality=mean(quality))
 
