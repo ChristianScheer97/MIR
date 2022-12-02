@@ -73,7 +73,7 @@ pull_album_infos<-function(ids, token)
   }
   liste<-select(liste, 
                 album.label=label,              # Label-Spalte auswählen und in "album.label" umbennen
-                album.upc = external_ids$upc)       
+                album.upc = external_ids.upc)       
   return(liste)
 }
 
@@ -116,6 +116,7 @@ expand_artists<-function(trackframe){
 #filename<-"top200_weekly_charts_germany.rds"
 filename<-"top30_monthly_charts_germany.rds"
 tracklist<-read_rds(paste0("data/", filename))
+tracklist<-head(tracklist, 10)
 
 # set spotify Client ID and Client Secret
 passport<-c("6cba647b5e724401b9a518c6745df78e","9edd34ffbf884f33b4a5b47857c29898")
