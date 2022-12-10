@@ -33,7 +33,7 @@ spotiscrape<-function(page, number){
   datum<-gsub("https://charts.spotify.com/charts/view/regional-de-weekly/","",page) %>% as.Date("%Y-%m-%d") %>% as.data.frame() # Erzeuge ein Datum aus der page-URL und speichere es als Datenspalte
   
   chart<-cbind(ids, position, titles, artists, streams, datum) # binde die Datenspalten zusammen
-  names(chart)<-c("track.id", "track.position", "track.name", "track.artist", "track.streams", "chart.date") # gib den Datenspalten Namen
+  names(chart)<-c("track.id", "track.position", "track.name", "track.artists", "track.streams", "chart.date") # gib den Datenspalten Namen
   return(chart)
 }
 

@@ -2,6 +2,7 @@ rm(list=ls()) # workspace
 
 library(tidyverse)  # import basic functions
 library(spotifyr) # import spotify wrapper
+library(stringr)
 
 connect_spotify<-function(pass)     #Visumbeantragung bei API
 {              
@@ -31,9 +32,11 @@ pull_track_infos<-function(ids, token)
   liste$artist.id<-sapply(liste$artists,'[[','id') %>% sapply('[[',1) #Neue Variable Artists-ids, vorerst nur 1. Artist (aus Liste auspacken)
   
   liste<-select(liste,track.artistlist=artists,artist.name,artist.id,
-                track.explicit=explicit,track.popularity=popularity, track.isrc=external_ids.isrc,
-                track.number=track_number,track.duration_ms=duration_ms, 
-                track.popularity=popularity,album.id,album.name) #auswählen und umbenennen zu behaltender Variablen aus Datensatz "Liste"
+                track.explicit=explicit,
+                track.popularity=popularity, 
+                track.isrc=external_ids.isrc,
+                track.number=track_number, 
+                album.id,album.name) #auswählen und umbenennen zu behaltender Variablen aus Datensatz "Liste"
   return(liste)
 }
 
@@ -51,9 +54,15 @@ pull_artist_infos<-function(ids, token)
     anfang<-anfang+stepsize
     if (anfang>length(ids)) {break}              #aussteigen wenn Listenende erreicht
   }
-  liste<-select(liste, artist.genres=genres, 
+  
+  liste<-select(liste, 
+                artist.genres=genres,
+                artist.genre=genres,
                 artist.popularity=popularity, 
                 artist.followers=followers.total)
+
+  liste$artist.genre<-lapply(liste$artist.genre, '[[', 1)
+
   return(liste)
 }
 
@@ -73,7 +82,12 @@ pull_album_infos<-function(ids, token)
   }
   liste<-select(liste, 
                 album.label=label,              # Label-Spalte auswählen und in "album.label" umbennen
-                album.upc = external_ids.upc)       
+                album.upc = external_ids.upc,
+                album.trackcount = total_tracks,
+                album.releasetype = type,
+                album.popularity=popularity,
+                album.release_date = release_date
+                )       
   return(liste)
 }
 
@@ -91,12 +105,26 @@ pull_audio_features<-function(ids, token)
     anfang<-anfang+stepsize
     if (anfang>length(ids)) {break}             # aussteigen wenn Listenende erreicht
   }
-  liste<-select(liste,  -duration_ms, # alles außer die folgenden auswählen
+  liste<-select(liste, # alles außer die folgenden auswählen
                 -analysis_url,
                 -track_href,
                 -uri,
                 -id,
-                -type)
+                -type,
+                f.danceability = danceability,
+                f.energy = energy,
+                f.key = key,
+                f.loudness = loudness,
+                f.mode = mode,
+                f.speechiness = speechiness,
+                f.acousticness = acousticness,
+                f.instrumentalness = instrumentalness,
+                f.liveness = liveness,
+                f.valence = valence,
+                f.tempo = tempo,
+                f.time_signature = time_signature,
+                f.duration_ms = duration_ms
+               )
   return(liste)
 }
 
@@ -140,5 +168,10 @@ tracks.netto<-nrow(distinct(tracklist, track.name, track.artist, .keep_all = T))
 labels.netto<-length(unique(ergebnisse_trackbasiert$album.label)) # get number of labels without doublets
 
 # write data sets
-write_rds(ergebnisse_trackbasiert,paste0("data/spotified_tracks_",filename))
-write_rds(ergebnisse_artistbasiert,paste0("data/spotified_artists_",filename))
+#write_rds(ergebnisse_trackbasiert,paste0("data/spotified_tracks_",filename))
+#write_rds(ergebnisse_artistbasiert,paste0("data/spotified_artists_",filename))
+
+cols<-colnames(ergebnisse_artistbasiert)
+albums_spotify <- get_albums(ergebnisse_trackbasiert$album.id[1])
+
+view(ergebnisse_artistbasiert)
