@@ -62,5 +62,5 @@ top30_monthly_charts$time<-rep(1:(nrow(top30_monthly_charts)/30), each=30)
 remDr$close()
 rD[["Server"]]$stop()
 
-saveRDS(top200_weekly_charts, file = "top200_weekly_charts_germany.rds")
-saveRDS(top30_monthly_charts, file = "top30_monthly_charts_germany.rds")
+saveRDS(top200_weekly_charts, file = "data/top200_weekly_charts_germany.rds")
+saveRDS(top30_monthly_charts, file = "data/top30_monthly_charts_germany.rds")
