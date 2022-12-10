@@ -36,7 +36,8 @@ pull_track_infos<-function(ids, token)
                 track.popularity=popularity, 
                 track.isrc=external_ids.isrc,
                 track.number=track_number, 
-                album.id,album.name) #auswählen und umbenennen zu behaltender Variablen aus Datensatz "Liste"
+                album.id,
+                album.name) #auswählen und umbenennen zu behaltender Variablen aus Datensatz "Liste"
   return(liste)
 }
 
@@ -54,15 +55,14 @@ pull_artist_infos<-function(ids, token)
     anfang<-anfang+stepsize
     if (anfang>length(ids)) {break}              #aussteigen wenn Listenende erreicht
   }
-  liste<-liste %>% nest(data=c(href, id, uri, external_urls.spotify)) # nest some data
+  
   liste<-select(liste, 
                 artist.genres=genres,
                 artist.genre=genres,
                 artist.popularity=popularity, 
                 artist.followers=followers.total,
-                track.artist.list=data)
-
-  liste$artist.genre<-lapply(liste$artist.genre, '[[', 1) # select first of all 'genres' for 'genre' category
+                href, id, uri, external_urls.spotify)
+  liste$artist.genre<-sapply(liste$artist.genre, head, n=1) # select first of all 'genres' for 'genre' category
 
   return(liste)
 }
@@ -107,11 +107,11 @@ pull_audio_features<-function(ids, token)
     if (anfang>length(ids)) {break}             # aussteigen wenn Listenende erreicht
   }
   liste<-select(liste, # alles außer die folgenden auswählen
-                -analysis_url,
-                -track_href,
-                -uri,
-                -id,
-                -type,
+                # -analysis_url,
+                # -track_href,
+                # -uri,
+                # -id,
+                # -type,
                 f.danceability = danceability,
                 f.energy = energy,
                 f.key = key,
@@ -131,6 +131,7 @@ pull_audio_features<-function(ids, token)
 
 # Funktion zum Auspacken der Artistliste um somit artistbasierten statt trackbasierten Datensatz erzeugen
 expand_artists<-function(trackframe){
+  cat("expand artists \n")
   trackframe<-select(trackframe,-artist.name,-artist.id) # alte vorläufige Artistnamen und IDs löschen  
   trackframe<-unnest(trackframe,cols=track.artistlist) #auspacken der verschachtelten Listenelemente von artist.list 
   trackframe<-rename(trackframe,artist.name=name,artist.id=id,) # neue Artistnamen und IDs richtig benennen
@@ -145,8 +146,7 @@ expand_artists<-function(trackframe){
 #filename<-"top200_weekly_charts_germany.rds"
 filename<-"top30_monthly_charts_germany.rds"
 tracklist<-read_rds(paste0("data/", filename))
-tracklist<-head(tracklist, 10)
-
+#tracklist<-head(tracklist, 10)
 # set spotify Client ID and Client Secret
 passport<-c("6cba647b5e724401b9a518c6745df78e","9edd34ffbf884f33b4a5b47857c29898")
 token<-connect_spotify(passport)                      # Visum bei der API beantragen
@@ -159,6 +159,7 @@ track_features<-pull_audio_features(tracklist$track.id, passport) # pull track f
 
 # create trackbased and artist based lists
 ergebnisse_trackbasiert<-cbind(tracklist, track_infos, artist_infos, album_infos, track_features)
+ergebnisse_trackbasiert<-ergebnisse_trackbasiert %>% nest(track.artist.list=c(href, id, uri, external_urls.spotify)) # nest some data
 ergebnisse_artistbasiert<-expand_artists(ergebnisse_trackbasiert)
 
 # get stats
@@ -169,10 +170,6 @@ tracks.netto<-nrow(distinct(tracklist, track.name, track.artist, .keep_all = T))
 labels.netto<-length(unique(ergebnisse_trackbasiert$album.label)) # get number of labels without doublets
 
 # write data sets
-#write_rds(ergebnisse_trackbasiert,paste0("data/spotified_tracks_",filename))
-#write_rds(ergebnisse_artistbasiert,paste0("data/spotified_artists_",filename))
+write_rds(ergebnisse_trackbasiert,paste0("data/spotified_tracks_",filename))
+write_rds(ergebnisse_artistbasiert,paste0("data/spotified_artists_",filename))
 
-cols<-colnames(ergebnisse_artistbasiert)
-albums_spotify <- get_albums(ergebnisse_trackbasiert$album.id[1])
-
-view(ergebnisse_artistbasiert)
