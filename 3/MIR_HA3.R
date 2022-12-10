@@ -54,7 +54,7 @@ pull_artist_infos<-function(ids, token)
     anfang<-anfang+stepsize
     if (anfang>length(ids)) {break}              #aussteigen wenn Listenende erreicht
   }
-  liste<-liste %>% nest(data=c(href, id, uri, external_urls.spotify))
+  liste<-liste %>% nest(data=c(href, id, uri, external_urls.spotify)) # nest some data
   liste<-select(liste, 
                 artist.genres=genres,
                 artist.genre=genres,
@@ -62,7 +62,7 @@ pull_artist_infos<-function(ids, token)
                 artist.followers=followers.total,
                 track.artist.list=data)
 
-  liste$artist.genre<-lapply(liste$artist.genre, '[[', 1)
+  liste$artist.genre<-lapply(liste$artist.genre, '[[', 1) # select first of all 'genres' for 'genre' category
 
   return(liste)
 }
